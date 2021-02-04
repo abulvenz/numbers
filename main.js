@@ -295,14 +295,23 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
 
         const leastNonZeroMultiplier = numByMultiplier["1"];
         const result = [];
-        const rest = L(front, back);
+        let rest = L(front, back);
         let count = 0;
 
         const multiplierShift = leastNonZeroMultiplier.mostSignificentDigit();
 
-        while (rest.greaterThan(L("0.001")) && (count++) < 100) {
-            console.log(rest.mostSignificentDigit() - multiplierShift)
-            console.log(rest.mostSignificentDigit() - multiplierShift - 1)
+        while (rest.greaterThan(L("0.001")) && (count++) < 10) {
+            const initialShift = rest.mostSignificentDigit() - multiplierShift;            
+            let restDimisher = leastNonZeroMultiplier.shift(initialShift);
+            let count2 = 0;
+            let shift = initialShift;
+            while(restDimisher.greaterThan(rest)&&(count2++)<10){
+                restDimisher = leastNonZeroMultiplier.shift(--shift);
+                console.log(count2,rest.toString(),shift, restDimisher.toString())
+            }
+
+           console.log("Found shift",shift);
+           rest = rest.sub(restDimisher);
         }
         console.log(result)
 

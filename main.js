@@ -30,6 +30,8 @@ const expect = (title, expected, actual) => (!deepEqual(expected, actual) ?
     console.error(title, ": expected", expected, "actual", actual) :
     (showSuccess ? console.info(title) : null));
 
+const block = (title, active, f) => active ? f() : console.log("Not testing ", title);
+
 const range = function(S, N) {
     const r = [];
     for (let i = S; i <= N; i += 1) {
@@ -63,20 +65,26 @@ const leftTrim = (arr) => use(arr.findIndex((e) => e !== 0),
 const rightTrim = (arr) => use(reversed(arr).findIndex((e) => e !== 0),
     (idx) => idx < 0 ? [] : arr.slice(0, arr.length - idx));
 
-if (test) {
+block("Range", test, () => {
     expect("range(1,3) === [1,2,3]", [1, 2, 3], range(1, 3))
     expect("from(3).downTo(1) === [3,2,1]", [3, 2, 1], from(3).downTo(1))
     expect("range(0,3) === [0,1,2,3]", [0, 1, 2, 3], range(0, 3))
     expect("from(0).to(3) === [0,1,2,3]", [0, 1, 2, 3], from(0).to(3))
     expect("from(3).downTo(0) === [3,2,1,0]", [3, 2, 1, 0], from(3).downTo(0))
     expect("from(9).downTo(1) === [9,8,7,6,5,4,3,2,1]", [9, 8, 7, 6, 5, 4, 3, 2, 1], from(9).downTo(1))
+});
 
+block("Zeros", test, () => {
     expect("Zeros 3", [0, 0, 0], zeros(3));
     expect("Zeros 6", [0, 0, 0, 0, 0, 0], zeros(6));
     expect("Zeros 0", [], zeros(0));
+});
 
+block("Zeros", test, () => {
     expect("repeat", [{ a: 1 }, { a: 1 }], repeat(2, { a: 1 }));
+});
 
+block("leftPadZeros", test, () => {
     expect("leftPadZeros [1]", [0, 0, 1], leftPadZeros(3, [1]));
     expect("leftPadZeros [1, 3, 1, 0, 0]", [0, 0, 1, 3, 1, 0, 0],
         leftPadZeros(7, [1, 3, 1, 0, 0]));
@@ -85,7 +93,9 @@ if (test) {
     expect("leftPadZeros [1]", [1], leftPadZeros(0, [1]));
     expect("leftPadZeros [1, 1, 1, 1]", [1, 1, 1, 1],
         leftPadZeros(3, [1, 1, 1, 1]));
+});
 
+block("rightPadZeros", test, () => {
     expect("rightPadZeros [1]", [1, 0, 0], rightPadZeros(3, [1]));
     expect("rightPadZeros [1, 3, 1, 0, 0]", [1, 3, 1, 0, 0, 0, 0],
         rightPadZeros(7, [1, 3, 1, 0, 0]));
@@ -94,15 +104,27 @@ if (test) {
     expect("rightPadZeros [1]", [1], rightPadZeros(0, [1]));
     expect("rightPadZeros [1, 1, 1, 1]", [1, 1, 1, 1],
         rightPadZeros(3, [1, 1, 1, 1]));
+});
 
+block("Trim", test, () => {
     expect("leftTrim", [1, 2, 3], leftTrim([0, 1, 2, 3]))
     expect("leftTrim", [], leftTrim([0, 0, 0, 0]))
     expect("rightTrim", [1, 2, 3], rightTrim([1, 2, 3, 0, 0]))
     expect("rightTrim", [0, 0, 1, 2, 3], rightTrim([0, 0, 1, 2, 3, 0, 0]))
     expect("rightTrim", [], rightTrim([0, 0, 0, 0]))
+});
 
-    console.info("Range testing done.")
-}
+const period = function(arr = []) {
+    return {
+        rest: [],
+        period: []
+    };
+};
+
+block("Period", test, () => {
+    expect("", { rest: [], period: [] }, period([]));
+    expect("0.166666 = 0.1_6", { rest: [1], period: [6] }, period([1, 6, 6, 6, 6, 6]))
+});
 
 const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
     if (typeof front === "string") {
@@ -275,14 +297,23 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
         0 :
         use(
             front.findIndex(e => e !== 0),
-            idx => idx > -1 ? front.length - idx :
+            idx => idx > -1 ? front.length - 1 - idx :
             use(
                 back.findIndex(e => e !== 0),
-                idx_ => idx_ > -1 ? idx__ : 0
+                idx_ => idx_ > -1 ? idx_ : 0
             )
         );
 
+    const fillEmptySlots = (arr = [], def = 0) => {
+        for (let i = 0; i < arr.length; i++) {
+            arr[i] = arr[i] || 0;
+        }
+        return arr;
+    };
+
     const divide = (other_) => {
+
+        const divLog = () => {};
 
         if (use(other_.toString(), ostr => ostr === "0" || ostr === "0.0")) {
             throw new Error("Division by zero");
@@ -294,94 +325,58 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
             }), {});
 
         const leastNonZeroMultiplier = numByMultiplier["1"];
-        const result = [];
+        const resultFront = [];
+        const resultBack = [];
         let rest = L(front, back);
         let count = 0;
 
         const multiplierShift = leastNonZeroMultiplier.mostSignificentDigit();
 
-        while (rest.greaterThan(L("0.001")) && (count++) < 10) {
-            const initialShift = rest.mostSignificentDigit() - multiplierShift;            
+        while (rest.greaterThan(L("0.000001")) && (count++) < 100) {
+
+            divLog("Dividing", rest.toString(), other_.toString())
+
+            const initialShift = rest.mostSignificentDigit() - multiplierShift;
+            resultFront[initialShift] = 0;
             let restDimisher = leastNonZeroMultiplier.shift(initialShift);
             let count2 = 0;
             let shift = initialShift;
-            while(restDimisher.greaterThan(rest)&&(count2++)<10){
+            while (restDimisher.greaterThan(rest) && (count2++) < 100) {
                 restDimisher = leastNonZeroMultiplier.shift(--shift);
-                console.log(count2,rest.toString(),shift, restDimisher.toString())
+                divLog("diminishing", count2, rest.toString(), shift, restDimisher.toString())
             }
 
-           console.log("Found shift",shift);
-           rest = rest.sub(restDimisher);
-        }
-        console.log(result)
+            divLog("initialShift", initialShift, "multiplierShift", multiplierShift)
 
-        console.log("result", leftTrim(result))
+            let digit = 1;
+            guessDigit: for (let n = 9; n > 1; n--) {
+                const guess = numByMultiplier[String(n)].shift(shift);
 
-        return L(leftTrim(result));
-    };
+                divLog('guess', n, guess.toString(), rest.toString())
+                if (guess.lessThanOrEqual(rest)) {
+                    digit = n;
+                    restDimisher = guess;
+                    break guessDigit;
+                }
+            }
+            divLog("Found shift", shift);
+            if (digit === 0) throw new Error("Nö");
 
-    const divide2 = (other_) => {
-
-        if (use(other_.toString(), ostr => ostr === "0" || ostr === "0.0")) {
-            throw new Error("Division by zero");
-        }
-
-        const { me, other, postcomma } = align(other_, false);
-
-        const numByMultiplier = from(0).to(9)
-            .reduce((acc, num) => assign(acc, {
-                [num]: L(leftTrim(multiplySingleArray(other, num)._front))
-            }), {});
-
-        let window = (function(arr, start = 0, end = 0) {
-            const iterate = () => from(start).to(end)
-                .map(i => arr[i] || 0);
-            return {
-                start: (i = start) => (start = i),
-                end: (i = end) => (end = i),
-                iterate,
-                leftTrim: () => start = arr.findIndex(e => e !== 0),
-                toNumber: () => L(iterate())
-            };
-        }(me, 0, 0));
-
-        const leastNonZeroMultiplier = numByMultiplier["1"];
-        console.log(postcomma, leastNonZeroMultiplier.toString());
-
-        const result = [];
-
-        window.leftTrim();
-
-        while (
-            (window.end() < me.length + 200) &&
-            window.toNumber().lessThan(leastNonZeroMultiplier)
-        ) {
-            window.end(window.end() + 1);
-            result.push(0);
+            if (shift >= 0) {
+                resultFront[initialShift - shift] = digit;
+            } else {
+                resultBack[-shift - 1] = digit;
+            }
+            divLog("Result", shift, digit, "=>", resultFront, resultBack)
+            rest = rest.sub(restDimisher);
         }
 
-        console.log("window:", window.toNumber().toString())
+        divLog("Finished: Rest", rest.toString())
 
-        console.log(numByMultiplier[String("1")].lessThanOrEqual(window.toNumber()))
-
-        const num =
-            from(9).downTo(1)
-            .map(e => {
-                console.log(e);
-                return e;
-            })
-
-        .find(i => numByMultiplier[String(i)].lessThanOrEqual(window.toNumber()));
-
-        console.log(num)
-
-        result.push(num || 0);
-
-        console.log(result)
-
-        console.log("result", leftTrim(result))
-
-        return L(leftTrim(result));
+        return L(
+            leftTrim(fillEmptySlots(resultFront)),
+            fillEmptySlots(resultBack)
+        );
     };
 
     const shift = (width) => {
@@ -400,11 +395,12 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
         // >> rightshift
         if (width < 0) {
             const newFrontDigits = front.length + width;
+            // console.log(newFrontDigits)
             const newFront = newFrontDigits < 1 ? [0] :
                 front.slice(0, newFrontDigits);
             const newBack = [
                 ...zeros(-newFrontDigits),
-                ...front.slice(newFrontDigits, front.length),
+                ...front.slice(max(0, newFrontDigits), front.length),
                 ...back
             ];
             return L(newFront, rightTrim(newBack), negative);
@@ -441,13 +437,60 @@ const L = L1;
 
 if (test) {
 
+    expect("6>>1 = .6", "0.6", L("6").shift(-1).toString());
+    expect("6>>2 = .06", "0.06", L("6").shift(-2).toString());
+    expect("6>>3 = .006", "0.006", L("6").shift(-3).toString());
+    expect("6>>4 = .0006", "0.0006", L("6").shift(-4).toString());
+    expect("6>>5 = .00006", "0.00006", L("6").shift(-5).toString());
+
+    expect("543>>1 = 54.3", "54.3", L("543").shift(-1).toString());
+    expect("543>>2 = 5.43", "5.43", L("543").shift(-2).toString());
+    expect("543>>3 = 0.543", "0.543", L("543").shift(-3).toString());
+    expect("543>>4 = 0.0543", "0.0543", L("543").shift(-4).toString());
+    expect("543>>5 = 0.00543", "0.00543", L("543").shift(-5).toString());
+    expect("543>>6 = 0.000543", "0.000543", L("543").shift(-6).toString());
+
+    expect("543<<0 = 543", "543", L("543").shift(0).toString());
+    expect("543>>0 = 543", "543", L("543").shift(-0).toString());
+
+    expect("54.3>>1 = 543", "543", L("54.3").shift(1).toString());
+    expect("5.43>>2 = 543", "543", L("5.43").shift(2).toString());
+    expect("0.543>>3 = 543", "543", L("0.543").shift(3).toString());
+    expect("0.0543>>4 = 543", "543", L("0.0543").shift(4).toString());
+    expect("0.00543<<5 = 543", "543", L("0.00543").shift(5).toString());
+
+    expect("Left Shifting 0.01234<<2 = 1.234", "1.234", L("0.01234").shift(2).toString());
+    expect("Left Shifting 1.01<<2 = 101", "101", L("1.01").shift(2).toString());
+    expect("Left Shifting 1.01<<3 = 1010", "1010", L("1.01").shift(3).toString());
+    expect("Left Shifting 1.01<<1 = 10.1", "10.1", L("1.01").shift(1).toString());
+    expect("Left Shifting -1.01<<1 = -10.1", "-10.1", L("-1.01").shift(1).toString());
+
+    expect("Left Shifting 0.01<<2 = 1", "1", L("0.01").shift(2).toString());
+    expect("Left Shifting 1<<2 = 100", "100", L("1").shift(2).toString());
+    expect("Left Shifting 1<<4 = 10000", "10000", L("1").shift(4).toString());
+    expect("Right Shifting 1>>2 = 0.01", "0.01", L("1").shift(-2).toString());
+    expect("Right Shifting 1>>1 = 0.1", "0.1", L("1").shift(-1).toString());
+    expect("Right Shifting 123>>2 = 1.23", "1.23", L("123").shift(-2).toString());
+    expect("Right Shifting 123.4>>2 = 1.234", "1.234", L("123.4").shift(-2).toString());
+
+    expect("Right Shifting 100>>2 = 1", "1", L("100").shift(-2).toString());
+
+    expect("Right Shifting 100>>2 = 1", "1", L("100").shift(-2).toString());
+    expect("Right Shifting 10000>>4 = 1", "1", L("10000").shift(-4).toString());
+
+    expect("Right Shifting 1001>>3 = 1.001", "1.001", L("1001").shift(-3).toString());
+
     expect("isZero 100 = false", false, L("100").isZero());
     expect("isZero 0 = true", true, L("0").isZero());
 
-    expect("MostSignificantDigit 100 = 2", "2", L("100").mostSignificentDigit());
+    expect("MostSignificantDigit 100 = 2", 2, L("100").mostSignificentDigit());
+
+
+    expect("Division 20 / 4 = 5", "5", L("20").divide(L("4")).toString());
 
 
     expect("Division 100 / 10 = 10", "10", L("100").divide(L("10")).toString());
+    expect("Division 1 / 10 = 0.1", "0.1", L("1").divide(L("10")).toString());
 
     expect("Division 10 / 10 = 1", "1", L("10").divide(L("10")).toString());
     expect("Division 1 / 6 = 1", "0.16_6", L("1").divide(L("6")).toString());
@@ -474,26 +517,6 @@ if (test) {
     expect("Multiplication with 100 shifts by two zeros", "100", L("1").mul(L("100")).toString());
     expect("Multiplication with 100 shifts by two zeros and vice versa", "100", L("100").mul(L("1")).toString());
 
-    expect("Left Shifting 0.01234<<2 = 1.234", "1.234", L("0.01234").shift(2).toString());
-    expect("Left Shifting 1.01<<2 = 101", "101", L("1.01").shift(2).toString());
-    expect("Left Shifting 1.01<<3 = 1010", "1010", L("1.01").shift(3).toString());
-    expect("Left Shifting 1.01<<1 = 10.1", "10.1", L("1.01").shift(1).toString());
-    expect("Left Shifting -1.01<<1 = -10.1", "-10.1", L("-1.01").shift(1).toString());
-
-    expect("Left Shifting 0.01<<2 = 1", "1", L("0.01").shift(2).toString());
-    expect("Left Shifting 1<<2 = 100", "100", L("1").shift(2).toString());
-    expect("Left Shifting 1<<4 = 10000", "10000", L("1").shift(4).toString());
-    expect("Right Shifting 1>>2 = 0.01", "0.01", L("1").shift(-2).toString());
-    expect("Right Shifting 1>>1 = 0.1", "0.1", L("1").shift(-1).toString());
-    expect("Right Shifting 123>>2 = 1.23", "1.23", L("123").shift(-2).toString());
-    expect("Right Shifting 123.4>>2 = 1.234", "1.234", L("123.4").shift(-2).toString());
-
-    expect("Right Shifting 100>>2 = 1", "1", L("100").shift(-2).toString());
-
-    expect("Right Shifting 100>>2 = 1", "1", L("100").shift(-2).toString());
-    expect("Right Shifting 10000>>4 = 1", "1", L("10000").shift(-4).toString());
-
-    expect("Right Shifting 1001>>3 = 1.001", "1.001", L("1001").shift(-3).toString());
 
 
     expect("To string with one digit", "0.1", L([0], [1]).toString());
@@ -599,7 +622,7 @@ const strL = str => use(str.replace(",", ".").indexOf("."), deliPos =>
     ));
 
 let a_ = L();
-let b_ = L();
+let b_ = L([1]);
 
 const setA = str => a_ = L(str);
 const setB = str => b_ = L(str);
@@ -609,6 +632,6 @@ m.mount(document.body, {
         h1("Numbers"),
         (a_.negative ? "-" : "+"), input({ oninput: e => setA(e.target.value) }),
         (b_.negative ? "-" : "+"), input({ oninput: e => setB(e.target.value) }),
-        pre({ style: 'overflow:wrap;' }, use(a_.add(b_).toString(), s => [a_.compare(b_), s.length, "\n", s]))
+        pre({ style: 'overflow:wrap;' }, use(a_.divide(b_).toString(), s => [a_.compare(b_), s.length, "\n", s]))
     ]
 });

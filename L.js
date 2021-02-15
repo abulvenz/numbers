@@ -1,6 +1,6 @@
-import {block,expect} from "./test";
+import { block, expect } from "./test";
 
-const { max, abs, min, sqrt, round, trunc, random } = Math;
+const { max, abs, min, trunc, random } = Math;
 const { assign } = Object;
 const test = true;
 
@@ -133,7 +133,9 @@ block('Period', test, () => {
     // 4.44634612671235 / 111111111 = 0.000000040017115180428265180428265180428265180428265180428265180428265180428265180428265180428265180428
 });
 
-const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
+const L1 = function(front = [], back = [], negative = false) {
+
+    const chunkSize = 10;
     if (typeof front === 'string') {
         let str = front;
         str = str.trim();
@@ -251,6 +253,7 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
             .downTo(0)
             .map((i) => {
                 const diff = chunkSize + a[i] - b[i] - carry;
+                //   log(diff, a[i], b[i], carry)
                 carry = diff - chunkSize < 0 ? 1 : 0;
                 return abs(diff % chunkSize);
             });
@@ -356,9 +359,9 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
 
         while (
             rest.greaterThan(
-                L('0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001')
+                L('0.00000000000000000000000000000000000000000000001')
             ) &&
-            count++ < 10
+            count++ < 1000
         ) {
             log(count, rest.toString())
 
@@ -412,20 +415,80 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
         }
     };
 
+    const square = function() {
+        return L(front, back).mul(L(front, back));
+    };
+
+    const absolute = function() {
+        return L(front, back);
+    };
+
+    const round = function(p = 0) {
+        return use(
+            L(front, back, negative).shift(p - 1).trunc(1),
+            shifted => shifted.trunc().add(L("1")).shift(-p + 1)
+        );
+    };
+
+    const sqrt = function(precision = 50) {
+        const innerPrec = precision + 2;
+        const threshold = L([0], [...zeros(innerPrec), 1]);
+        const target = L(front, back);
+
+        let left = L("0");
+        let right = target.lessThan(L("1")) ? L("1") : target;
+        let diff = undefined;
+        let middle = undefined;
+        do {
+            middle = left.add(right).mul(L(".5"));
+            let middleSquare = middle.square();
+
+            if (middleSquare.greaterThan(target)) {
+                right = middle;
+
+            } else {
+                left = middle;
+            }
+            //   log("middle", middle.toString())
+
+            diff = middleSquare.sub(target).abs();
+            //  log("diff", diff.toString())
+
+        } while (diff.greaterThanOrEqual(threshold));
+
+        return middle.round(innerPrec).trunc(innerPrec - 2).trim();
+    };
+
+    const trim = function() {
+        return L(leftTrim(front), rightTrim(back));
+    };
+
+    const backHistogram = function() {
+        return back.reduce((acc, v) => assign(acc, {
+            [v]: (acc[v] || 0) + 1
+        }), {});
+    };
+
     return Object.freeze({
         add,
+        abs: absolute,
         sub,
         mul,
+        trim,
+        sqrt,
         equal,
         shift,
-        trunc: () => L(front),
+        round,
+        trunc: (p = 0) => L(front, back.slice(0, p), negative),
+        square,
         invert,
         divide,
         isZero,
         compare,
-        toString,
         lessThan,
+        toString,
         greaterThan,
+        backHistogram,
         lessThanOrEqual,
         greaterThanOrEqual,
         mostSignificentDigit,
@@ -440,6 +503,31 @@ const L1 = function(front = [], back = [], negative = false, chunkSize = 10) {
 const L = L1;
 
 if (test) {
+
+    expect('Sub 4 - 1 = 3', '3', L('4').sub(L('1')).toString());
+
+
+    expect("1 to string is OK", "1", L("1").toString());
+
+    expect("2² = 4", "4", L("2").square().toString());
+
+    expect("2² - 1 = 3", "3", L("4").sub(L("1")).toString())
+
+    log = console.log
+
+    expect("sqrt(25) = 5", "5", L("25").sqrt(10).toString())
+    expect("sqrt(1) = 1", "1", L("1.0").sqrt().toString())
+    expect("sqrt(6.25) = 2.5", "2.5", L("6.25").sqrt().toString())
+    expect("sqrt(2,8) = 1.41421356", "1.41421356", L("2").sqrt(8).toString())
+    expect("sqrt(24,7) = 4.8989794", "4.8989794", L("24").sqrt(7).toString())
+    expect("sqrt(0.25) = 0.5", "0.5", L("0.25").sqrt().toString())
+
+    expect("sqrt(2) = 1.41421356237309504880168872420969807856967187537694", "1.41421356237309504880168872420969807856967187537694", L("2").sqrt().toString())
+
+    console.log(L("1.4142135623730950488016887242096980785696718753769480731766797379907324784621070388503875343276415727").backHistogram())
+
+    log = () => null
+
     expect('6>>1 = .6', '0.6', L('6').shift(-1).toString());
     expect('6>>2 = .06', '0.06', L('6').shift(-2).toString());
     expect('6>>3 = .006', '0.006', L('6').shift(-3).toString());
@@ -507,11 +595,13 @@ if (test) {
     expect('Division 0.01 / 0.02 = 0.5', '0.5', L('0.01').divide(L('0.02')).toString());
     expect('Division 0.02 / 0.01 = 2', '2', L('0.02').divide(L('0.01')).toString());
 
-    log = console.log
     expect('Division 1 / 6 = 1', '0.16_6', L('1').divide(L('6')).toString());
+    // throw new Error("Stop")
+
+    // log = console.log
+    expect("Division 3/2 = 1.5", "1.5", L("3").divide(L("2")).toString());
     log = () => null
 
-    expect("Division 3/2 = 1.5", "1.5", L("3").divide(L("2")).toString());
     expect("Division 121/11 = 11", "11", L("121").divide(L("11")).toString());
     expect("Division 121/10 = 12.1", "12.1", L("121").divide(L("10")).toString());
     expect("Division 121/100 = 1.21", "1.21", L("121").divide(L("100")).toString());
@@ -675,6 +765,11 @@ if (test) {
 
     expect('Compare 0.0 to 0.0 = 0 ', 0, L('.0').compare(L('0.')));
 
+    expect("", true, false)
+
+
+
+
     expect('Sub 1.1 - 1.1 = 0', '0', L('1.1').sub(L('1.1')).toString());
     expect('Sub 1.2 - 1.1 = 0.1', '0.1', L('1.2').sub(L('1.1')).toString());
     expect('Sub 1.1 - 1.2 = -0.1', '-0.1', L('1.1').sub(L('1.2')).toString());
@@ -696,9 +791,10 @@ if (test) {
     expect('Parsing when front is string', '0', L('.').toString());
     expect('Parsing when front is string', '0.3', L('.3').toString());
 
+
     console.info('Done testing');
 }
 
 export default {
-    number:L
+    number: L
 }

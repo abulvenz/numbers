@@ -363,7 +363,7 @@ const L1 = function(front = [], back = [], negative = false) {
             ) &&
             count++ < 1000
         ) {
-            log(count, rest.toString())
+            //  log(count, rest.toString())
 
             const initialShift = rest.mostSignificentDigit() - multiplierShift;
             let restDiminisher = leastNonZeroMultiplier.shift(initialShift);
@@ -449,14 +449,22 @@ const L1 = function(front = [], back = [], negative = false) {
             } else {
                 left = middle;
             }
-            //   log("middle", middle.toString())
-
             diff = middleSquare.sub(target).abs();
-            //  log("diff", diff.toString())
-
         } while (diff.greaterThanOrEqual(threshold));
 
         return middle.round(innerPrec).trunc(innerPrec - 2).trim();
+    };
+
+    const sqrt2 = function(precision = 1500) {
+        let p = L("1");
+        let q = L("1");
+
+        for (let k = 0; k < precision; k++) {
+            let op = p;
+            p = op.add(q.mul(L("2")));
+            q = op.add(q);
+        }
+        return p.divide(q);
     };
 
     const trim = function() {

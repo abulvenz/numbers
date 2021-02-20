@@ -1,6 +1,26 @@
 {
-  "dependencies": {
-    "mithril": "^2.0.4",
-    "tagl-mithril": "^1.2.2"
-  }
+    "dependencies": {
+        "mithril": "^2.0.4",
+        "tagl-mithril": "^1.2.2"
+    },
+    "name": "large-numbers",
+    "description": "Coding KATA",
+    "version": "1.0.0",
+    "main": "main.js",
+    "devDependencies": {},
+    "scripts": {
+        "prepublish": "parcel build src/L.js --out-dir lib/",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/abulvenz/numbers.git"
+    },
+    "keywords": [],
+    "author": "abulvenz@github",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/abulvenz/numbers/issues"
+    },
+    "homepage": "https://github.com/abulvenz/numbers#readme"
 }
